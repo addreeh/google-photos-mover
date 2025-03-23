@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@theme {
+    --font-sans: 'Product Sans', 'sans-serif';
+
+    --color-header: #1E1F20;
+    --color-background: #131314;
+    --color-primary: #E3E3E3;
+    --color-secondary: #C4C7C5;
+    --color-input: #282A2C;
+    --color-button: #004A77;
+    --color-button-text: #C2E7FF;
+  }

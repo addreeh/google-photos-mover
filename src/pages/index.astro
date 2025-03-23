@@ -1,11 +1,126 @@
 ---
-import Welcome from '../components/Welcome.astro';
 import Layout from '../layouts/Layout.astro';
+import { getSession } from 'auth-astro/server';
+import { PhotosAPI } from '../lib/photos';
+import SearchBar from '@/components/SearchBar';
+import CreateAlbum from '@/components/CreateAlbum';
 
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+// Import Material components only once, here in the Astro file
+import '@material/web/divider/divider.js';
+import '@material/web/icon/icon.js';
+import '@material/web/list/list.js';
+import '@material/web/list/list-item.js';
+import '@material/web/textfield/outlined-text-field.js';
+import '@material/web/button/filled-tonal-button.js';
+import '@material/web/icon/icon.js';
+import '@material/web/iconbutton/filled-icon-button.js';
+import '@material/web/iconbutton/filled-tonal-icon-button.js';
+import '@material/web/iconbutton/icon-button.js';
+import '@material/web/iconbutton/outlined-icon-button.js';
+import { Image } from 'astro:assets';
+
+const session = await getSession(Astro.request);
+if (!session?.user) {
+  return Astro.redirect('/login');
+}
+let photos = [];
+let albums = [];
+let error = null;
+let loading = true;
+
+console.warn('Session:', session);
+
+if (session?.accessToken) {
+  console.log('Access Token:', session.accessToken);
+  const api = new PhotosAPI(session.accessToken);
+  try {
+    const [photosData, albumsData] = await Promise.all([
+      api.getAllPhotos(), // Use the new method to get all photos
+      api.getAllAlbums()  // Use the new method to get all albums
+    ]);
+    photos = photosData.mediaItems || [];
+    albums = albumsData.albums || [];
+    console.log(`Retrieved ${photos.length} photos and ${albums.length} albums`);
+  } catch (e) {
+    error = e instanceof Error ? e.message : 'An error occurred while fetching data';
+    console.error('Error fetching data:', e);
+  } finally {
+    loading = false;
+  }
+}
 ---
 
-<Layout>
-	<Welcome />
+<Layout title="Home">
+  {error && (
+    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+      <strong class="font-bold">Error!</strong>
+      <span class="block sm:inline"> {error}</span>
+    </div>
+  )}
+  
+  {loading && (
+    <div class="flex justify-center items-center py-8">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <span class="ml-3">Loading your photos and albums...</span>
+    </div>
+  )}
+  
+  <SearchBar client:load photos={photos} />
+  <section class="flex flex-row gap-10 justify-between max-w-full overflow-x-hidden">
+    <div class="w-1/3 rounded-md flex flex-col gap-4" id="photosList">
+        {photos.map((photo) => (
+          <div class="flex flex-row gap-4 items-center">
+            <Image class="rounded-lg min-w-14 min-h-14 w-14 h-14" src={photo.baseUrl} alt={photo.filename} width={56} height={56} loading="lazy" />
+            <span class="text-primary">{photo.filename}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+    <!-- Modified grid container with fixed height for 3 rows -->
+    <div class="flex flex-col gap-5">
+      <CreateAlbum client:load />
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto w-full overflow-x-hidden">
+        {albums.map((album) => (
+          <div class="rounded-lg shadow-md overflow-hidden h-48 flex flex-col items-center justify-center py-1">
+            <div class="h-32 w-32 rounded-md">
+              <Image
+                class="w-full h-full object-cover rounded-md"
+                src={album.coverPhotoBaseUrl ? `${album.coverPhotoBaseUrl}=w128-h128` : "https://via.placeholder.com/128"}
+                alt={album.title}
+                width={128}
+                height={128}
+                loading="lazy"
+              />
+            </div>
+            <div class="px-4 py-2">
+              <h3 class="font-semibold text-white">{album.title}</h3>
+              <p class="text-sm text-secondary">
+                {album.mediaItemsCount || 0} items
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
 </Layout>
+
+<script>
+  document.addEventListener('photosFiltered', (e) => {
+    const photosList = document.getElementById('photosList');
+    if (photosList && e instanceof CustomEvent) {
+      const filteredPhotos = e.detail.filteredPhotos;
+      
+      // Actualizar la lista de fotos
+      const list = photosList.querySelector('md-list');
+      if (list) {
+        list.innerHTML = filteredPhotos.map(photo => `
+          <md-list-item>
+            ${photo.filename}
+            <img slot="start" class="rounded-lg" style="width: 56px; height: 56px" src="${photo.baseUrl}" />
+          </md-list-item>
+        `).join('');
+      }
+    }
+  });
+</script>

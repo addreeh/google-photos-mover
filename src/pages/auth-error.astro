@@ -1,0 +1,27 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const error = Astro.url.searchParams.get('error') || 'unknown';
+
+let errorMessage = 'An authentication error occurred';
+let action = '/login';
+let actionText = 'Try again';
+
+if (error === 'session_expired') {
+  errorMessage = 'Your session has expired. Please sign in again.';
+} else if (error === 'token_expired') {
+  errorMessage = 'Your authentication has expired. Please sign in again.';
+} else if (error === 'server_error') {
+  errorMessage = 'There was a server error with authentication. Please try again later.';
+}
+---
+
+<Layout title="Authentication Error">
+  <div class="flex flex-col items-center justify-center space-y-4 text-center">
+    <h1 class="text-2xl font-bold">Authentication Error</h1>
+    <p>{errorMessage}</p>
+    <a href={action} class="px-4 py-2 bg-blue-500 text-white rounded">
+      {actionText}
+    </a>
+  </div>
+</Layout>
