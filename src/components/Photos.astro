@@ -1,0 +1,55 @@
+---
+import { Image } from "astro:assets"
+import type { Photo } from "@/types"
+
+const { photos } = Astro.props
+console.log(photos[0])
+---
+
+<div class="w-1/3 rounded-md flex flex-col gap-4" id="photosList">
+    {photos.map((photo: Photo, index: number) => (
+      <div class="flex flex-row gap-4 items-center photo-item">
+        <Image 
+          class="rounded-lg min-w-14 min-h-14 w-14 h-14" 
+          src={photo.baseUrl} 
+          alt={photo.filename} 
+          width={56} 
+          height={56} 
+          loading={index < 7 ? "eager" : "lazy"}
+        />
+        <span class="text-primary text-sm truncate">{photo.filename}</span>
+      </div>
+    ))}
+</div>
+
+<script>
+  interface FilteredPhoto {
+    filename: string;
+    mimeType?: string;
+  }
+
+  interface PhotosFilteredEvent extends CustomEvent {
+    detail: {
+      filteredPhotos: FilteredPhoto[];
+    };
+  }
+
+  // Almacenar todas las fotos originales
+  const originalPhotos = [...document.querySelectorAll('.photo-item')] as HTMLElement[];
+  
+  // Escuchar el evento de filtrado
+  document.addEventListener('photosFiltered', ((event: PhotosFilteredEvent) => {
+    const filteredPhotos = event.detail.filteredPhotos;
+    const photosList = document.getElementById('photosList');
+    
+    if (!photosList) return;
+    
+    // Ocultar todas las fotos
+    originalPhotos.forEach(photo => {
+      const filenameElement = photo.querySelector('span');
+      const filename = filenameElement?.textContent || '';
+      const shouldShow = filteredPhotos.some((filteredPhoto: FilteredPhoto) => filteredPhoto.filename === filename);
+      photo.style.display = shouldShow ? 'flex' : 'none';
+    });
+  }) as EventListener);
+</script>
